@@ -1,0 +1,55 @@
+CREATE OR REPLACE FUNCTION
+increaseSomeThingCostsFunction(maxTotalIncrease INTEGER)
+RETURNS INTEGER AS $$
+
+    DECLARE
+        theCost NUMERIC(5,2);
+        theCount INTEGER;
+        theMult INTEGER;
+        theKind VARCHAR(2);
+
+    DECLARE firingCursor CURSOR FOR
+        SELECT thingKind, COUNT(*)
+        FROM Things
+        WHERE ownerMemberID IS NOT NULL AND ownerRole IS NOT NULL
+        GROUP BY thingKind
+        ORDER BY COUNT(*) DESC;
+
+    BEGIN
+
+        IF maxTotalIncrease <= 0 THEN
+            RETURN -1;
+        END IF;
+
+        theCost := 0;
+        OPEN firingCursor;
+
+        LOOP
+            FETCH firingCursor INTO theKind, theCount;
+            EXIT WHEN NOT FOUND;
+            
+            IF theCount >= 5 THEN
+                theMult := 5;
+            ELSIF theCount = 4 THEN
+                theMult := 4;
+            ELSIF theCount = 3 THEN
+                theMult := 2;
+            ELSE
+                theMult := 0;
+            END IF;
+ 
+            IF theCost + theCount * theMult <= maxTotalIncrease THEN
+                theCost := theCost + theCount * theMult;
+                UPDATE Things
+                SET cost = cost + theMult
+                WHERE thingKind = theKind;
+
+            END IF;
+
+        END LOOP;
+        CLOSE firingCursor;  
+
+        RETURN theCost;
+    END
+
+$$ LANGUAGE plpgsql;
